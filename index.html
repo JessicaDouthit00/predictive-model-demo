@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Predicting Outcome from Blood Pressure Trajectories — LCICM Retrospective</title>
+<meta name="description" content="A retrospective analysis predicting patient outcome from irregular longitudinal systolic blood pressure readings, in a synthetic cohort of 249 patients." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F8F6;
+    --surface:#FFFFFF;
+    --ink:#1C2430;
+    --muted:#5B6572;
+    --line:#DADFE3;
+    --teal:#2E6E62;
+    --teal-soft:#E4EEEC;
+    --slate:#8D96A6;
+    --rust:#B5502E;
+    --rust-soft:#F4E7E0;
+    --radius:2px;
+    --measure:68ch;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  ::selection{ background:var(--teal); color:#fff; }
+
+  h1,h2,h3{
+    font-family:'Fraunces', Georgia, serif;
+    font-weight:500;
+    letter-spacing:-0.01em;
+    color:var(--ink);
+    margin:0;
+  }
+
+  a{ color:var(--teal); }
+  a:focus-visible, button:focus-visible, .file-link:focus-visible{
+    outline:2px solid var(--teal);
+    outline-offset:3px;
+  }
+
+  code, .mono{
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 32px;
+  }
+
+  /* ---------- layout: sticky step nav + content column ---------- */
+  .layout{
+    display:grid;
+    grid-template-columns:220px minmax(0,1fr);
+    gap:56px;
+    align-items:start;
+  }
+  .stepnav{
+    position:sticky;
+    top:40px;
+    padding-top:8px;
+    border-left:1px solid var(--line);
+  }
+  .stepnav ol{
+    list-style:none;
+    margin:0; padding:0;
+  }
+  .stepnav li{ margin:0; }
+  .stepnav a{
+    display:block;
+    padding:10px 0 10px 18px;
+    margin-left:-1px;
+    border-left:1px solid transparent;
+    text-decoration:none;
+    color:var(--muted);
+    font-size:0.85rem;
+    line-height:1.35;
+    transition:color .15s, border-color .15s;
+  }
+  .stepnav a:hover{ color:var(--ink); }
+  .stepnav a.active{
+    color:var(--teal);
+    border-left:1px solid var(--teal);
+    font-weight:500;
+  }
+  .stepnav .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--slate);
+    margin-right:8px;
+  }
+  .stepnav a.active .num{ color:var(--teal); }
+
+  @media (max-width:900px){
+    .layout{ grid-template-columns:1fr; }
+    .stepnav{ position:static; border-left:none; border-top:1px solid var(--line); padding-top:16px; }
+    .stepnav ol{ display:flex; flex-wrap:wrap; gap:4px 18px; }
+    .stepnav a{ padding:6px 0; border-left:none; }
+    .stepnav a.active{ border-left:none; text-decoration:underline; }
+  }
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding:72px 0 40px;
+  }
+  .hero .eyebrow{ margin-bottom:18px; }
+  .hero h1{
+    font-size:clamp(2rem, 4vw, 3.1rem);
+    line-height:1.08;
+    max-width:16ch;
+  }
+  .hero-sub{
+    max-width:var(--measure);
+    color:var(--muted);
+    font-size:1.05rem;
+    margin-top:20px;
+  }
+
+  .hero-stats{
+    display:flex;
+    gap:40px;
+    margin-top:36px;
+    flex-wrap:wrap;
+  }
+  .stat .value{
+    font-family:'Fraunces', serif;
+    font-size:2.1rem;
+    color:var(--teal);
+    line-height:1;
+  }
+  .stat .label{
+    font-size:0.8rem;
+    color:var(--muted);
+    margin-top:6px;
+    max-width:16ch;
+  }
+
+  .hero-chart{
+    margin-top:48px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    padding:20px 20px 10px;
+  }
+  .hero-chart svg{ width:100%; height:auto; display:block; }
+  .hero-chart-caption{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:10px 2px 0;
+    font-size:0.78rem;
+    color:var(--muted);
+  }
+  .legend-dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%;
+    margin-right:6px; vertical-align:middle;
+  }
+
+  .trace{ fill:none; stroke-width:1.4; }
+  .trace-0{ stroke:var(--slate); opacity:0.38; }
+  .trace-1{ stroke:var(--teal); opacity:0.62; }
+  .hero-grid{ stroke:var(--line); stroke-width:1; }
+  .hero-grid-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    fill:var(--muted);
+  }
+
+  @media (prefers-reduced-motion:no-preference){
+    .trace{
+      stroke-dasharray:1400;
+      stroke-dashoffset:1400;
+      animation:draw 2.4s ease-out forwards;
+    }
+    .trace-1{ animation-delay:.15s; }
+    @keyframes draw{ to{ stroke-dashoffset:0; } }
+  }
+
+  /* ---------- sections ---------- */
+  section{
+    padding:52px 0;
+    border-top:1px solid var(--line);
+  }
+  section:first-of-type{ border-top:none; }
+  section h2{
+    font-size:1.6rem;
+    margin-bottom:8px;
+  }
+  .section-kicker{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:22px;
+  }
+  .section-kicker .num{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--slate);
+    font-size:0.85rem;
+  }
+  p{ max-width:var(--measure); }
+  .lede{
+    font-size:1.05rem;
+    color:var(--muted);
+    max-width:var(--measure);
+    margin-top:10px;
+  }
+
+  /* ---------- tables ---------- */
+  table{
+    border-collapse:collapse;
+    width:100%;
+    margin:24px 0;
+    font-size:0.92rem;
+  }
+  caption{
+    text-align:left;
+    font-size:0.78rem;
+    color:var(--muted);
+    margin-bottom:8px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  th, td{
+    text-align:left;
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  thead th{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:500;
+    font-size:0.72rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    border-bottom:1px solid var(--ink);
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.num, th.num{ font-family:'IBM Plex Mono', monospace; text-align:right; }
+  tr.highlight td{ background:var(--teal-soft); }
+  tr.highlight td:first-child{ position:relative; }
+  tr.highlight td:first-child::before{
+    content:"";
+    position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--teal);
+  }
+
+  /* ---------- cards / grid ---------- */
+  .card-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin:28px 0;
+  }
+  .card{
+    background:var(--surface);
+    padding:20px 22px;
+  }
+  .card .k{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .card .v{
+    font-family:'Fraunces', serif;
+    font-size:1.5rem;
+    margin-top:6px;
+  }
+  .card .d{ font-size:0.85rem; color:var(--muted); margin-top:6px; }
+
+  /* ---------- decision log ---------- */
+  .decision{
+    display:grid;
+    grid-template-columns:200px 1fr;
+    gap:24px;
+    padding:20px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .decision:last-child{ border-bottom:none; }
+  .decision .issue{
+    font-weight:500;
+  }
+  .decision .tag{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    padding:3px 8px;
+    border-radius:2px;
+    margin-top:8px;
+    background:var(--teal-soft);
+    color:var(--teal);
+  }
+  .decision .tag.warn{ background:var(--rust-soft); color:var(--rust); }
+  @media (max-width:700px){
+    .decision{ grid-template-columns:1fr; }
+  }
+
+  /* ---------- feature list ---------- */
+  .feature-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+    gap:10px 20px;
+    margin:24px 0;
+    padding:0; list-style:none;
+  }
+  .feature-list li{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.85rem;
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+    color:var(--ink);
+  }
+  .feature-list li span{
+    display:block;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:0.78rem;
+    color:var(--muted);
+    margin-top:3px;
+  }
+
+  /* ---------- figures ---------- */
+  figure{
+    margin:28px 0;
+    border:1px solid var(--line);
+    background:var(--surface);
+    padding:18px 18px 14px;
+  }
+  figure img{ width:100%; display:block; }
+  figcaption{
+    font-size:0.82rem;
+    color:var(--muted);
+    margin-top:10px;
+    max-width:var(--measure);
+  }
+  .fig-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:800px){ .fig-row{ grid-template-columns:1fr; } }
+
+  /* ---------- limitations ---------- */
+  .limits{
+    list-style:none;
+    margin:24px 0; padding:0;
+    max-width:var(--measure);
+  }
+  .limits li{
+    position:relative;
+    padding-left:24px;
+    margin-bottom:16px;
+  }
+  .limits li::before{
+    content:"—";
+    position:absolute; left:0; top:0;
+    color:var(--rust);
+  }
+
+  /* ---------- downloads ---------- */
+  .downloads{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:24px;
+  }
+  .file-link{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 16px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    text-decoration:none;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.82rem;
+    transition:border-color .15s, color .15s;
+  }
+  .file-link:hover{ border-color:var(--teal); color:var(--teal); }
+  .file-link .ext{ color:var(--muted); }
+
+  footer{
+    padding:48px 0 80px;
+    border-top:1px solid var(--line);
+    color:var(--muted);
+    font-size:0.85rem;
+  }
+  footer p{ max-width:var(--measure); }
+
+  .banner{
+    background:var(--rust-soft);
+    color:var(--rust);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    padding:9px 0;
+    text-align:center;
+    letter-spacing:0.02em;
+  }
+</style>
+</head>
+<body>
+
+<div class="banner">Synthetic cohort · for methodology evaluation only · not real patient data</div>
+
+<div class="wrap layout">
+
+  <nav class="stepnav" aria-label="Report sections">
+    <ol>
+      <li><a href="#overview"><span class="num">00</span>Overview</a></li>
+      <li><a href="#data"><span class="num">01</span>The data</a></li>
+      <li><a href="#cleaning"><span class="num">02</span>Cleaning decisions</a></li>
+      <li><a href="#features"><span class="num">03</span>Feature engineering</a></li>
+      <li><a href="#exploratory"><span class="num">04</span>Exploratory findings</a></li>
+      <li><a href="#modeling"><span class="num">05</span>Modeling</a></li>
+      <li><a href="#results"><span class="num">06</span>Results</a></li>
+      <li><a href="#limitations"><span class="num">07</span>Limitations</a></li>
+      <li><a href="#downloads"><span class="num">08</span>Downloads</a></li>
+    </ol>
+  </nav>
+
+  <div>
+
+    <header class="hero" id="overview">
+      <div class="eyebrow">LCICM Retrospective Analysis · Synthetic Cohort</div>
+      <h1>Predicting patient outcome from blood pressure trajectories</h1>
+      <p class="hero-sub">
+        249 patients, each with 1&ndash;6 irregularly-timed systolic BP readings, were used to train and evaluate
+        classifiers against a binary outcome label. This page documents every preprocessing decision,
+        the engineered features, and the resulting model performance &mdash; end to end, nothing hidden below the fold.
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="value">0.88</div>
+          <div class="label">ROC&#8209;AUC, best model (Gradient Boosting), 5&#215;20 repeated CV</div>
+        </div>
+        <div class="stat">
+          <div class="value">249</div>
+          <div class="label">patients in the modeling set, of 300 labeled</div>
+        </div>
+        <div class="stat">
+          <div class="value">13</div>
+          <div class="label">engineered features per patient from raw readings</div>
+        </div>
+        <div class="stat">
+          <div class="value">2:1</div>
+          <div class="label">class imbalance, label&#8201;0 to label&#8201;1</div>
+        </div>
+      </div>
+
+      <div class="hero-chart">
+        <svg viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Overlaid systolic blood pressure trajectories for a sample of patients, colored by outcome label">
+<line x1="40" y1="165.0" x2="960" y2="165.0" class="hero-grid" stroke-dasharray="2,6" />
+<text x="966" y="169.0" class="hero-grid-label">130</text>
+<line x1="40" y1="148.3" x2="960" y2="148.3" class="hero-grid" stroke-dasharray="0" />
+<text x="966" y="152.3" class="hero-grid-label">140</text>
+<polyline class="trace trace-0" points="40.0,203.3 169.2,255.0 327.1,230.0 960.0,195.0" />
+<polyline class="trace trace-0" points="40.0,298.3 294.0,265.0 738.4,178.3 960.0,256.7" />
+<polyline class="trace trace-0" points="40.0,263.3 960.0,236.7" />
+<polyline class="trace trace-0" points="40.0,225.0 960.0,276.7" />
+<polyline class="trace trace-0" points="40.0,263.3 306.9,145.0 512.6,156.7 514.7,248.3 960.0,136.7" />
+<polyline class="trace trace-0" points="40.0,301.7 187.4,306.7 358.3,176.7 840.3,225.0 874.8,281.7 960.0,303.3" />
+<polyline class="trace trace-0" points="40.0,263.3 147.7,216.7 319.9,158.3 361.0,196.7 654.1,271.7 960.0,235.0" />
+<polyline class="trace trace-0" points="40.0,171.7 412.1,290.0 524.6,220.0 632.0,258.3 634.0,243.3 960.0,248.3" />
+<polyline class="trace trace-0" points="40.0,183.3 960.0,275.0" />
+<polyline class="trace trace-0" points="40.0,158.3 147.0,203.3 581.6,161.7 721.0,263.3 854.3,208.3 960.0,165.0" />
+<polyline class="trace trace-0" points="40.0,193.3 960.0,303.3" />
+<polyline class="trace trace-0" points="40.0,243.3 960.0,175.0" />
+<polyline class="trace trace-0" points="40.0,295.0 169.0,163.3 218.1,276.7 409.4,226.7 508.9,196.7 960.0,150.0" />
+<polyline class="trace trace-0" points="40.0,295.0 476.0,136.7 508.0,190.0 960.0,283.3" />
+<polyline class="trace trace-0" points="40.0,280.0 61.1,230.0 338.0,265.0 601.9,166.7 615.0,166.7 960.0,141.7" />
+<polyline class="trace trace-0" points="40.0,308.3 960.0,175.0" />
+<polyline class="trace trace-0" points="40.0,226.7 400.8,258.3 475.9,225.0 638.7,201.7 674.3,201.7 960.0,163.3" />
+<polyline class="trace trace-0" points="40.0,173.3 113.0,220.0 669.2,145.0 691.6,205.0 960.0,191.7" />
+<polyline class="trace trace-0" points="40.0,266.7 960.0,150.0" />
+<polyline class="trace trace-0" points="40.0,246.7 302.6,205.0 960.0,173.3" />
+<polyline class="trace trace-0" points="40.0,278.3 960.0,253.3" />
+<polyline class="trace trace-0" points="40.0,138.3 379.6,300.0 698.7,193.3 956.3,256.7 960.0,188.3" />
+<polyline class="trace trace-0" points="40.0,190.0 904.8,276.7 960.0,281.7" />
+<polyline class="trace trace-0" points="40.0,146.7 396.0,213.3 960.0,153.3" />
+<polyline class="trace trace-0" points="40.0,156.7 155.9,233.3 442.8,200.0 960.0,181.7" />
+<polyline class="trace trace-0" points="40.0,245.0 577.8,135.0 603.2,160.0 684.8,300.0 960.0,150.0" />
+<polyline class="trace trace-0" points="40.0,246.7 329.5,285.0 555.7,235.0 856.9,286.7 960.0,266.7" />
+<polyline class="trace trace-0" points="40.0,203.3 114.9,158.3 658.7,156.7 899.6,315.0 960.0,138.3" />
+<polyline class="trace trace-0" points="40.0,270.0 519.3,176.7 692.9,243.3 960.0,138.3" />
+<polyline class="trace trace-0" points="40.0,226.7 56.4,163.3 80.2,291.7 883.1,303.3 960.0,225.0" />
+<polyline class="trace trace-0" points="40.0,156.7 292.9,231.7 960.0,220.0" />
+<polyline class="trace trace-0" points="40.0,281.7 252.5,151.7 472.6,223.3 725.1,205.0 960.0,240.0" />
+<polyline class="trace trace-0" points="40.0,141.7 103.7,170.0 213.4,233.3 372.6,303.3 797.9,183.3 960.0,181.7" />
+<polyline class="trace trace-0" points="40.0,223.3 883.2,158.3 929.1,256.7 960.0,235.0" />
+<polyline class="trace trace-0" points="40.0,160.0 318.7,185.0 662.8,236.7 952.2,215.0 960.0,245.0" />
+<polyline class="trace trace-0" points="40.0,263.3 350.1,203.3 529.9,155.0 656.2,250.0 960.0,195.0" />
+<polyline class="trace trace-0" points="40.0,183.3 221.4,276.7 960.0,248.3" />
+<polyline class="trace trace-0" points="40.0,176.7 163.0,221.7 960.0,230.0" />
+<polyline class="trace trace-0" points="40.0,265.0 76.6,291.7 106.1,135.0 498.3,281.7 724.2,143.3 960.0,183.3" />
+<polyline class="trace trace-0" points="40.0,210.0 452.6,208.3 558.7,241.7 623.3,238.3 903.9,281.7 960.0,238.3" />
+<polyline class="trace trace-0" points="40.0,258.3 960.0,181.7" />
+<polyline class="trace trace-0" points="40.0,275.0 257.3,228.3 297.3,271.7 475.8,276.7 767.6,148.3 960.0,280.0" />
+<polyline class="trace trace-0" points="40.0,151.7 284.1,168.3 960.0,196.7" />
+<polyline class="trace trace-0" points="40.0,258.3 707.4,281.7 960.0,135.0" />
+<polyline class="trace trace-0" points="40.0,233.3 107.5,218.3 263.6,315.0 532.8,216.7 960.0,311.7" />
+<polyline class="trace trace-0" points="40.0,181.7 189.6,233.3 189.8,195.0 472.3,226.7 823.7,140.0 960.0,241.7" />
+<polyline class="trace trace-0" points="40.0,251.7 148.6,248.3 750.0,291.7 878.2,183.3 960.0,210.0" />
+<polyline class="trace trace-0" points="40.0,250.0 180.9,186.7 960.0,226.7" />
+<polyline class="trace trace-0" points="40.0,213.3 960.0,308.3" />
+<polyline class="trace trace-1" points="40.0,288.3 246.2,298.3 960.0,161.7" />
+<polyline class="trace trace-1" points="40.0,108.3 508.2,326.7 752.7,183.3 804.2,113.3 960.0,231.7" />
+<polyline class="trace trace-1" points="40.0,301.7 960.0,83.3" />
+<polyline class="trace trace-1" points="40.0,311.7 181.9,250.0 960.0,113.3" />
+<polyline class="trace trace-1" points="40.0,293.3 597.2,226.7 697.6,120.0 960.0,150.0" />
+<polyline class="trace trace-1" points="40.0,273.3 960.0,183.3" />
+<polyline class="trace trace-1" points="40.0,236.7 482.2,81.7 960.0,73.3" />
+<polyline class="trace trace-1" points="40.0,273.3 46.9,311.7 536.4,176.7 543.1,56.7 960.0,131.7" />
+<polyline class="trace trace-1" points="40.0,156.7 65.2,126.7 363.9,233.3 412.1,55.0 960.0,275.0" />
+<polyline class="trace trace-1" points="40.0,308.3 960.0,76.7" />
+<polyline class="trace trace-1" points="40.0,78.3 181.2,128.3 825.7,293.3 960.0,125.0" />
+<polyline class="trace trace-1" points="40.0,306.7 250.9,148.3 559.2,158.3 594.1,133.3 960.0,195.0" />
+<polyline class="trace trace-1" points="40.0,160.0 960.0,316.7" />
+<polyline class="trace trace-1" points="40.0,141.7 229.6,101.7 585.1,308.3 799.7,281.7 960.0,108.3" />
+<polyline class="trace trace-1" points="40.0,243.3 611.7,248.3 960.0,86.7" />
+<polyline class="trace trace-1" points="40.0,205.0 478.4,155.0 785.2,316.7 960.0,173.3" />
+<polyline class="trace trace-1" points="40.0,161.7 633.3,273.3 960.0,316.7" />
+<polyline class="trace trace-1" points="40.0,183.3 815.1,210.0 960.0,130.0" />
+<polyline class="trace trace-1" points="40.0,283.3 128.8,136.7 270.0,55.0 685.7,111.7 960.0,175.0" />
+<polyline class="trace trace-1" points="40.0,203.3 960.0,196.7" />
+<polyline class="trace trace-1" points="40.0,90.0 960.0,193.3" />
+</svg>
+        <div class="hero-chart-caption">
+          <span><span class="legend-dot" style="background:var(--slate)"></span>Label 0 (n=165)</span>
+          <span><span class="legend-dot" style="background:var(--teal)"></span>Label 1 (n=84)</span>
+          <span>Dotted / solid lines mark 130 &amp; 140 mmHg clinical thresholds</span>
+        </div>
+      </div>
+    </header>
+
+    <section id="data">
+      <div class="section-kicker"><span class="num">01</span><h2>The data</h2></div>
+      <p class="lede">Two files were provided: a table of raw BP readings, and a table of binary labels. Neither lines up perfectly with the other.</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="k">bp readings</div>
+          <div class="v">859</div>
+          <div class="d">rows of (patient, timestamp, systolic BP)</div>
+        </div>
+        <div class="card">
+          <div class="k">labeled patients</div>
+          <div class="v">300</div>
+          <div class="d">200 label&#8201;0 &middot; 100 label&#8201;1</div>
+        </div>
+        <div class="card">
+          <div class="k">patients w/ any bp data</div>
+          <div class="v">250</div>
+          <div class="d">50 labeled patients have zero readings</div>
+        </div>
+        <div class="card">
+          <div class="k">readings per patient</div>
+          <div class="v">1&ndash;6</div>
+          <div class="d">irregular count and irregular timing</div>
+        </div>
+      </div>
+
+      <p>Timestamps are not evenly spaced and don't follow a fixed visit schedule &mdash; some patients have
+      readings clustered close together, others spread across the full ~25,000-minute observation window.
+      That irregularity is the reason the modeling approach (Section 03) collapses each patient's series into
+      summary features rather than treating it as a fixed-length time series.</p>
+    </section>
+
+    <section id="cleaning">
+      <div class="section-kicker"><span class="num">02</span><h2>Cleaning decisions</h2></div>
+      <p class="lede">Four data-quality issues were found. Each is logged here with the decision made and the reasoning &mdash; nothing was silently dropped or imputed without a stated reason.</p>
+
+      <div class="decision">
+        <div>
+          <div class="issue">Labeled patients with no BP rows</div>
+          <span class="tag warn">50 patients &middot; 16.7%</span>
+        </div>
+        <div>
+          <p style="margin:0">Excluded from modeling. There is no BP signal to learn from for these patients,
+          so imputing population averages would inject noise rather than information. Their label split
+          (15 label&#8201;1 / 35 label&#8201;0) is close to the overall rate, suggesting the missingness itself isn't
+          strongly informative &mdash; though that can't be confirmed with certainty from this data alone.</p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <div>
+          <div class="issue">Missing reading values</div>
+          <span class="tag warn">10 rows</span>
+        </div>
+        <div>
+          <p style="margin:0">Dropped at the row level before aggregation. A timestamp with no accompanying
+          BP value contributes nothing to a patient's summary statistics.</p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <div>
+          <div class="issue">Duplicate (patient, timestamp) pair</div>
+          <span class="tag">1 case</span>
+        </div>
+        <div>
+          <p style="margin:0">One patient (id 104) has two different BP values logged at the identical
+          timestamp. Both were kept as separate readings &mdash; aggregation into per-patient features makes this
+          essentially harmless, but it's flagged here for anyone auditing the raw file.</p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <div>
+          <div class="issue">Extreme values (30&ndash;197 mmHg)</div>
+          <span class="tag">not filtered</span>
+        </div>
+        <div>
+          <p style="margin:0">Not clipped or removed. This is synthetic data with no provenance metadata to
+          separate "measurement error" from "intentionally extreme value," so filtering on an arbitrary
+          plausibility threshold risks removing exactly the signal the labels were built around. Logged as a
+          limitation instead (Section 07).</p>
+        </div>
+      </div>
+
+      <p style="margin-top:28px"><strong>Net modeling set: 249 patients</strong> (165 label&#8201;0 / 84 label&#8201;1)
+      &mdash; the same ~2:1 imbalance as the full label file, confirming the exclusions above didn't skew class balance.</p>
+    </section>
+
+    <section id="features">
+      <div class="section-kicker"><span class="num">03</span><h2>Feature engineering</h2></div>
+      <p class="lede">Each patient's variable-length, irregularly-timed reading series is collapsed into a fixed 13-dimensional
+      feature vector &mdash; the right shape for a small tabular dataset, and one that keeps the model interpretable.</p>
+
+      <ul class="feature-list">
+        <li>n_readings<span>valid reading count</span></li>
+        <li>mean_bp<span>average across readings</span></li>
+        <li>std_bp<span>standard deviation</span></li>
+        <li>min_bp / max_bp<span>extremes observed</span></li>
+        <li>range_bp<span>max &minus; min</span></li>
+        <li>first_bp / last_bp<span>earliest &amp; latest reading</span></li>
+        <li>delta_first_last<span>last &minus; first</span></li>
+        <li>slope_bp<span>OLS trend vs. time</span></li>
+        <li>cv_bp<span>std / mean (scale-free volatility)</span></li>
+        <li>pct_ge_130<span>share of readings &ge; 130 mmHg</span></li>
+        <li>pct_ge_140<span>share of readings &ge; 140 mmHg</span></li>
+      </ul>
+      <p>The last two are domain-informed: 130 and 140&#8201;mmHg are standard AHA thresholds for elevated /
+      Stage&#8209;2 hypertensive systolic readings, added so the model can use clinically meaningful cut points rather
+      than only raw summary statistics.</p>
+    </section>
+
+    <section id="exploratory">
+      <div class="section-kicker"><span class="num">04</span><h2>Exploratory findings</h2></div>
+      <p class="lede">Label&#8201;1 patients show a clear, sizeable separation in BP level and volatility &mdash; this isn't noise the model is overfitting to.</p>
+
+      <table>
+        <caption>per-patient summary statistic, by label</caption>
+        <thead>
+          <tr><th>Statistic</th><th class="num">Label 0</th><th class="num">Label 1</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Mean of per-patient mean BP</td><td class="num">97.0</td><td class="num">111.2</td></tr>
+          <tr><td>Mean of per-patient max BP</td><td class="num">124.0</td><td class="num">148.7</td></tr>
+          <tr><td>Mean of per-patient BP range</td><td class="num">52.5</td><td class="num">76.1</td></tr>
+          <tr><td>Mean readings per patient</td><td class="num">3.62</td><td class="num">2.99</td></tr>
+        </tbody>
+      </table>
+
+      <div class="fig-row">
+        <figure>
+          <img src="assets/bp_distribution.png" alt="Histogram of all raw systolic BP readings" />
+          <figcaption>Distribution of all 849 valid raw BP readings across the cohort.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/mean_bp_by_label.png" alt="Histogram of per-patient mean BP, split by label" />
+          <figcaption>Per-patient mean BP, split by label &mdash; label&#8201;1 skews visibly higher.</figcaption>
+        </figure>
+      </div>
+      <figure>
+        <img src="assets/n_readings_by_label.png" alt="Bar chart of number of readings per patient, split by label" />
+        <figcaption>Readings per patient, by label. Label&#8201;1 patients trend toward slightly fewer readings &mdash;
+        noted again in Section 07, since the model does end up using it.</figcaption>
+      </figure>
+    </section>
+
+    <section id="modeling">
+      <div class="section-kicker"><span class="num">05</span><h2>Modeling approach</h2></div>
+      <p class="lede">With only 249 patients, a single train/test split gives a noisy performance estimate, so evaluation
+      relies on <strong>repeated stratified 5-fold cross-validation (20 repeats, 100 folds total)</strong>.</p>
+
+      <p>Features were standardized before Logistic Regression. Class imbalance (2:1) was handled with
+      <code>class_weight="balanced"</code> rather than resampling, to avoid distorting an already-small dataset further.
+      Four models were compared:</p>
+
+      <table>
+        <thead><tr><th>Model</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>Majority-class baseline</td><td>Sanity-check floor</td></tr>
+          <tr><td>Logistic Regression</td><td>Primary model &mdash; interpretable, regularized (L2)</td></tr>
+          <tr><td>Random Forest</td><td>Nonlinear comparison, shallow &amp; regularized</td></tr>
+          <tr><td>Gradient Boosting</td><td>Nonlinear comparison, shallow trees, low learning rate</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="results">
+      <div class="section-kicker"><span class="num">06</span><h2>Results</h2></div>
+      <p class="lede">All three real models clear the 0.50-AUC baseline by a wide margin &mdash; BP data carries genuine predictive signal for this label.</p>
+
+      <table>
+        <caption>repeated stratified 5-fold CV &middot; mean &plusmn; std across 100 folds</caption>
+        <thead>
+          <tr><th>Model</th><th class="num">ROC-AUC</th><th class="num">PR-AUC</th><th class="num">Accuracy</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Majority-class baseline</td><td class="num">0.500</td><td class="num">0.337</td><td class="num">0.663</td><td class="num">0.000</td><td class="num">0.000</td><td class="num">0.000</td></tr>
+          <tr><td>Logistic Regression</td><td class="num">0.820 &plusmn; .048</td><td class="num">0.746 &plusmn; .072</td><td class="num">0.763 &plusmn; .051</td><td class="num">0.658 &plusmn; .094</td><td class="num">0.656 &plusmn; .107</td><td class="num">0.650 &plusmn; .075</td></tr>
+          <tr><td>Random Forest</td><td class="num">0.867 &plusmn; .045</td><td class="num">0.847 &plusmn; .045</td><td class="num">0.841 &plusmn; .037</td><td class="num">0.859 &plusmn; .095</td><td class="num">0.645 &plusmn; .093</td><td class="num">0.730 &plusmn; .066</td></tr>
+          <tr class="highlight"><td>Gradient Boosting</td><td class="num">0.880 &plusmn; .049</td><td class="num">0.865 &plusmn; .051</td><td class="num">0.859 &plusmn; .041</td><td class="num">0.900 &plusmn; .088</td><td class="num">0.663 &plusmn; .106</td><td class="num">0.757 &plusmn; .076</td></tr>
+        </tbody>
+      </table>
+
+      <div class="fig-row">
+        <figure>
+          <img src="assets/roc_curve.png" alt="ROC curve for logistic regression, out-of-fold predictions" />
+          <figcaption>Out-of-fold ROC curve, Logistic Regression (single 5-fold pass).</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/confusion_matrix.png" alt="Confusion matrix for logistic regression at threshold 0.5" />
+          <figcaption>Out-of-fold confusion matrix, Logistic Regression, threshold&#8201;=&#8201;0.5.</figcaption>
+        </figure>
+      </div>
+
+      <figure>
+        <img src="assets/feature_coefficients.png" alt="Bar chart of standardized logistic regression coefficients by feature" />
+        <figcaption>Standardized Logistic Regression coefficients, fit on the full 249-patient set. Strongest positive
+        drivers of label&#8201;1: <code>range_bp</code>, <code>pct_ge_140</code>, <code>max_bp</code>. Strongest negative
+        driver: <code>n_readings</code>. <code>mean_bp</code>'s small coefficient here reflects multicollinearity with
+        <code>max_bp</code>/<code>range_bp</code>, not unimportance &mdash; it's strongly separated univariately (Section 04).</figcaption>
+      </figure>
+    </section>
+
+    <section id="limitations">
+      <div class="section-kicker"><span class="num">07</span><h2>Limitations</h2></div>
+      <p class="lede">What I'd flag before this model is used for anything beyond this evaluation.</p>
+      <ul class="limits">
+        <li><strong>Small sample (249 patients).</strong> Repeated CV is far more stable than a single holdout split,
+        but confidence intervals on these metrics are still wide &mdash; read AUC 0.82&ndash;0.88 as "clearly better than
+        chance," not as a precise figure.</li>
+        <li><strong>50 patients can't be scored at all</strong> by this model, since they have no BP data &mdash; a
+        deployment consideration as much as a training-time one.</li>
+        <li><strong>Extreme BP values weren't filtered.</strong> If some of the 30&ndash;40 or 190+ mmHg readings are
+        data-entry errors rather than intentional signal, that changes feature values for a handful of patients.</li>
+        <li><strong>The n_readings &ndash; label association</strong> is worth a second look. It could be a genuine
+        clinical pattern (e.g. sicker patients measured less) or an artifact of how the synthetic data was generated
+        &mdash; flagged here rather than assumed either way.</li>
+        <li><strong>Feature multicollinearity</strong> (mean/min/max/range are correlated) makes individual logistic
+        regression coefficients harder to read in isolation; the tree-based models are less affected but less directly
+        interpretable in exchange.</li>
+      </ul>
+    </section>
+
+    <section id="downloads">
+      <div class="section-kicker"><span class="num">08</span><h2>Downloads</h2></div>
+      <p class="lede">Everything needed to reproduce or audit this analysis.</p>
+      <div class="downloads">
+        <a class="file-link" href="data/analysis.py" download><span>analysis.py</span><span class="ext">full pipeline</span></a>
+        <a class="file-link" href="data/report.md" download><span>report.md</span><span class="ext">source write-up</span></a>
+        <a class="file-link" href="data/features_used_for_modeling.csv" download><span>features.csv</span><span class="ext">249&times;15 table</span></a>
+        <a class="file-link" href="data/logreg_coefficients.csv" download><span>coefficients.csv</span><span class="ext">logreg weights</span></a>
+        <a class="file-link" href="data/metrics_summary.json" download><span>metrics.json</span><span class="ext">full CV results</span></a>
+      </div>
+    </section>
+
+    <footer>
+      <p>All patient data is synthetic and generated for a methodology evaluation exercise; nothing on this
+      page describes real individuals. Analysis performed with pandas and scikit-learn; figures rendered with
+      matplotlib.</p>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+  // active step-nav highlighting on scroll
+  const links = document.querySelectorAll('.stepnav a');
+  const sections = [...links].map(l => document.querySelector(l.getAttribute('href')));
+  const setActive = () => {
+    let idx = 0;
+    const y = window.scrollY + 120;
+    sections.forEach((s, i) => { if (s && s.offsetTop <= y) idx = i; });
+    links.forEach((l, i) => l.classList.toggle('active', i === idx));
+  };
+  document.addEventListener('scroll', setActive, { passive:true });
+  window.addEventListener('load', setActive);
+</script>
+
+</body>
+</html>
