@@ -1,0 +1,58 @@
+{
+  "Majority-class baseline": {
+    "test_roc_auc_mean": 0.5,
+    "test_average_precision_mean": 0.3373061224489796,
+    "test_accuracy_mean": 0.6626938775510205,
+    "test_precision_mean": 0.0,
+    "test_recall_mean": 0.0,
+    "test_f1_mean": 0.0,
+    "test_roc_auc_std": 0.0,
+    "test_average_precision_std": 0.005387755102040835,
+    "test_accuracy_std": 0.0053877551020407935,
+    "test_precision_std": 0.0,
+    "test_recall_std": 0.0,
+    "test_f1_std": 0.0
+  },
+  "Logistic Regression": {
+    "test_roc_auc_mean": 0.8200796568627452,
+    "test_average_precision_mean": 0.7463402173703028,
+    "test_accuracy_mean": 0.7630530612244898,
+    "test_precision_mean": 0.6581486307716453,
+    "test_recall_mean": 0.656139705882353,
+    "test_f1_mean": 0.6497708807199425,
+    "test_roc_auc_std": 0.04796918459250623,
+    "test_average_precision_std": 0.07227082482496185,
+    "test_accuracy_std": 0.051214698795964325,
+    "test_precision_std": 0.09387017172553647,
+    "test_recall_std": 0.10670439548991649,
+    "test_f1_std": 0.07455111878558707
+  },
+  "Random Forest": {
+    "test_roc_auc_mean": 0.8672827540106951,
+    "test_average_precision_mean": 0.8468737776090515,
+    "test_accuracy_mean": 0.8406163265306122,
+    "test_precision_mean": 0.8585616749521546,
+    "test_recall_mean": 0.6454411764705881,
+    "test_f1_mean": 0.7300517183411912,
+    "test_roc_auc_std": 0.04534891561908142,
+    "test_average_precision_std": 0.045024053455708556,
+    "test_accuracy_std": 0.03709615790454091,
+    "test_precision_std": 0.09491574199870603,
+    "test_recall_std": 0.09261250522779024,
+    "test_f1_std": 0.0663053644568714
+  },
+  "Gradient Boosting": {
+    "test_roc_auc_mean": 0.8796813725490195,
+    "test_average_precision_mean": 0.8648275323803767,
+    "test_accuracy_mean": 0.8586734693877552,
+    "test_precision_mean": 0.900328124361019,
+    "test_recall_mean": 0.6626838235294116,
+    "test_f1_mean": 0.7566297380970188,
+    "test_roc_auc_std": 0.049248013188932925,
+    "test_average_precision_std": 0.050915512771208336,
+    "test_accuracy_std": 0.040895041445475455,
+    "test_precision_std": 0.0877785404671356,
+    "test_recall_std": 0.10602570845902777,
+    "test_f1_std": 0.0759884808424739
+  }
+}
